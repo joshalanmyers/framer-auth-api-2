@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from '@vercel/node'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET!
 )
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { email, password, firstName, lastName, mode } = req.body
 
   if (!email || !password) {
@@ -39,6 +39,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(400).json({ error: 'Invalid mode' })
   } catch (err: any) {
-    return res.status(500).json({ error: err.message })
+    return res.status(500).json({ error: err.message || 'Server error' })
   }
 }
