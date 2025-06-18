@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js"
 
 console.log("🔧 ENV:", {
   SUPABASE_URL: process.env.SUPABASE_URL,
@@ -10,29 +10,20 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET!
 )
 
-async function readBody(req: any) {
-  const chunks: Uint8Array[] = []
-  for await (const chunk of req) {
-    chunks.push(chunk)
-  }
-  const raw = Buffer.concat(chunks).toString("utf8")
-  return JSON.parse(raw)
-}
-
 export default async function handler(req: any, res: any) {
-  const body = req.method === "POST" ? await readBody(req) : {}
+  const body = req.body || {}
   console.log("📨 Incoming request:", body)
 
   const { email, password, firstName, lastName, mode } = body
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' })
+    return res.status(400).json({ error: "Email and password are required." })
   }
 
   try {
     console.log("🔁 Mode:", mode)
 
-    if (mode === 'signup') {
+    if (mode === "signup") {
       console.log("👤 Signing up:", email)
       const { data, error } = await supabase.auth.signUp({ email, password })
 
@@ -43,7 +34,7 @@ export default async function handler(req: any, res: any) {
 
       console.log("✅ Signup success:", data.user?.id)
 
-      const insert = await supabase.from('profiles').insert([
+      const insert = await supabase.from("profiles").insert([
         { id: data.user?.id, first_name: firstName, last_name: lastName },
       ])
 
@@ -52,7 +43,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ user: data.user })
     }
 
-    if (mode === 'signin') {
+    if (mode === "signin") {
       console.log("🔐 Signing in:", email)
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -67,9 +58,9 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ user: data.user })
     }
 
-    return res.status(400).json({ error: 'Invalid mode' })
+    return res.status(400).json({ error: "Invalid mode" })
   } catch (err: any) {
     console.error("💥 Unexpected server error:", err)
-    return res.status(500).json({ error: err.message || 'Server error' })
+    return res.status(500).json({ error: err.message || "Server error" })
   }
 }
