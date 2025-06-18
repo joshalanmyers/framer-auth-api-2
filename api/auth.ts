@@ -1,4 +1,3 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -6,7 +5,7 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET!
 )
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   const { email, password, firstName, lastName, mode } = req.body
 
   if (!email || !password) {
