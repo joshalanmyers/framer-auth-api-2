@@ -1,66 +1,103 @@
 import { createClient } from "@supabase/supabase-js"
 
-console.log("🔧 ENV:", {
-  SUPABASE_URL: process.env.SUPABASE_URL,
-  SUPABASE_SECRET: process.env.SUPABASE_SECRET?.slice(0, 10) + "..."
-})
-
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SECRET!
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SECRET!
 )
 
-export default async function handler(req: any, res: any) {
-  const body = req.body || {}
-  console.log("📨 Incoming request:", body)
+export default async function handler(req: Request) {
+    if (req.method !== "POST") {
+        return new Response("Method Not Allowed", {
+            status: 405,
+            headers: { "Access-Control-Allow-Origin": "*" },
+        })
+    }
 
-  const { email, password, firstName, lastName, mode } = body
+    const headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Content-Type": "application/json",
+    }
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required." })
-  }
+    // Handle preflight
+    if (req.method === "OPTIONS") {
+        return new Response(null, {
+            status: 204,
+            headers,
+        })
+    }
 
-  try {
-    console.log("🔁 Mode:", mode)
+    let body: any
+    try {
+        body = await req.json()
+    } catch (e) {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+            status: 400,
+            headers,
+        })
+    }
+
+    const { email, password, firstName, lastName, mode } = body
+
+    if (!email || !password || !mode) {
+        return new Response(
+            JSON.stringify({ error: "Missing fields" }),
+            { status: 400, headers }
+        )
+    }
+
+    let result
 
     if (mode === "signup") {
-      console.log("👤 Signing up:", email)
-      const { data, error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+        })
 
-      if (error) {
-        console.error("❌ Signup error:", error.message)
-        return res.status(400).json({ error: error.message })
-      }
+        if (error) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: 400,
+                headers,
+            })
+        }
 
-      console.log("✅ Signup success:", data.user?.id)
+        const user = data.user
 
-      const insert = await supabase.from("profiles").insert([
-        { id: data.user?.id, first_name: firstName, last_name: lastName },
-      ])
+        if (user) {
+            await supabase.from("profiles").insert([
+                {
+                    id: user.id,
+                    first_name: firstName,
+                    last_name: lastName,
+                },
+            ])
+        }
 
-      console.log("📄 Insert result:", insert)
+        result = { user }
+    } else if (mode === "signin") {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        })
 
-      return res.status(200).json({ user: data.user })
+        if (error) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: 400,
+                headers,
+            })
+        }
+
+        result = { user: data.user }
+    } else {
+        return new Response(JSON.stringify({ error: "Invalid mode" }), {
+            status: 400,
+            headers,
+        })
     }
 
-    if (mode === "signin") {
-      console.log("🔐 Signing in:", email)
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        console.error("❌ Signin error:", error.message)
-        return res.status(401).json({ error: error.message })
-      }
-
-      return res.status(200).json({ user: data.user })
-    }
-
-    return res.status(400).json({ error: "Invalid mode" })
-  } catch (err: any) {
-    console.error("💥 Unexpected server error:", err)
-    return res.status(500).json({ error: err.message || "Server error" })
-  }
+    return new Response(JSON.stringify(result), {
+        status: 200,
+        headers,
+    })
 }
