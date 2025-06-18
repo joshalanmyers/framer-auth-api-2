@@ -10,10 +10,20 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET!
 )
 
-export default async function handler(req: any, res: any) {
-  console.log("📨 Incoming request:", req.body)
+async function readBody(req: any) {
+  const chunks: Uint8Array[] = []
+  for await (const chunk of req) {
+    chunks.push(chunk)
+  }
+  const raw = Buffer.concat(chunks).toString("utf8")
+  return JSON.parse(raw)
+}
 
-  const { email, password, firstName, lastName, mode } = req.body
+export default async function handler(req: any, res: any) {
+  const body = req.method === "POST" ? await readBody(req) : {}
+  console.log("📨 Incoming request:", body)
+
+  const { email, password, firstName, lastName, mode } = body
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' })
